@@ -87,23 +87,37 @@ def depolarisation_channel(circ, qreg, p, wrap=False, inverse=False, label='depo
 qdata=[]
 
 #main file needed
-def quantum_data(p,freq_1, freq_2, freq_3):
+def quantum_data(p,freq_1, freq_2, freq_3, data_type, data_points = 10000):
 
     #p = 0.8
     #was 0.5 by me
     pauilProb=0
     n = 8
     print('generating data')
-    data=sin_data_generator.multi_plot_gen(p,freq_1, freq_2, freq_3, 10000)
-    print('generated data')
+    
 
     outputs=[] #add example to array
     labels=[] #add corresponding label to array
     #Creates a file with a unique name, based on variance and frequency
     #opens it
-    f = open('C:\\Users\\Fuad K\\Desktop\\Physics\\5th Year\\My_QCNN\\Rewritten Code\\Quantum_Data\\Qdata3'+str(p)+str(freq_1[0])+str(freq_1[1])+str(freq_2[0])+str(freq_2[1])+'.txt', 'a')
+    if data_type == "time plot":
+        data=sin_data_generator.multi_time_plot_gen(p,freq_1, freq_2, freq_3, data_points)
+        f = open('C:\\Users\\Fuad K\\Desktop\\Physics\\5th Year\\My_QCNN\\Rewritten Code\\Quantum_Data\\Qdata3'+str(p)+ \
+                 str(freq_1[0])+str(freq_1[1])+str(freq_1[2])+str(freq_1[3])+ \
+                 str(freq_2[0])+str(freq_2[1])+str(freq_2[2])+str(freq_2[3])+ \
+                 str(freq_3[0])+str(freq_3[1])+str(freq_3[2])+str(freq_3[3])+'.txt', 'a')
+
+    if data_type == "sin plot":
+        data = sin_data_generator.multi_sin_gen(p,freq_1, freq_2, freq_3, data_points)
+        f = open('C:\\Users\\Fuad K\\Desktop\\Physics\\5th Year\\My_QCNN\\Rewritten Code\\Quantum_Data\\Qdata3'+str(p)+str(freq_1[0])+str(freq_1[1])+str(freq_2[0])+str(freq_2[1])+str(freq_3[0])+str(freq_3[1])+'.txt', 'a')
+
+    print('generated data')
     
-    pbar = tqdm(total=10000)
+    pbar = tqdm(total=data_points)
+
+    q_reg = QuantumRegister(n, 'q_reg')
+    circ = QuantumCircuit(q_reg)
+    backend = Aer.get_backend('statevector_simulator')
     #print(range(0,len(data[0])))
     for i in range(0,len(data[0])):
         #print(i)
@@ -113,10 +127,8 @@ def quantum_data(p,freq_1, freq_2, freq_3):
         wave = wave/np.sqrt(np.sum(np.abs(wave)**2))
         #print(wave)
         label=data[1][i]
-        q_reg = QuantumRegister(n, 'q_reg')
-        circ = QuantumCircuit(q_reg)
+        
         circ.initialize(wave, q_reg)
-        backend = Aer.get_backend('statevector_simulator')
         circ = depolarisation_channel(circ, q_reg, pauilProb)
         job = execute(circ, backend)
         result = job.result()
@@ -125,7 +137,7 @@ def quantum_data(p,freq_1, freq_2, freq_3):
         outputs.append(out_state)
         pbar.update(1)
     f_out=[outputs,labels]
-    #np.savetxt('outfile.txt', array.view(float))
+    #np.savetxt('outfile.txt', array.view(float))-
     #writes the data to the file
     f.write(str(f_out))
     f.close()
@@ -133,15 +145,6 @@ def quantum_data(p,freq_1, freq_2, freq_3):
     return f_out
 
 if __name__ == "__main__":
-    #You can essentially ignore all of these, they just keep track of what data I had
-    #or had not generated
-    #to generate data run this file after you put your file
-    #quantum_data(variance,[start frequency,end frequency])
-    quantum_data(1,[10,11], [50,51], [30,31])
-    quantum_data(1,[10,11], [10,11], [10,11])
-    quantum_data(1,[120,150], [120,150], [120,150])
-    quantum_data(1,[50,70], [70,90], [120,150])
 
-
-    #quantum_data(0.8,[100,101], [150, 151], [130,131])
-    #quantum_data(0.8,[120,121], [170, 171], [150,151])
+    #quantum_data(1,[20,21,2,3], [50,51,7,8], [70,71,10,11], "time plot", 1000)
+    quantum_data(1,[20,21], [50,51], [70,71], "sin plot", 1000)
