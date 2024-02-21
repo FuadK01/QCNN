@@ -47,26 +47,33 @@ def data_embedding(X): #encode input X with 8 qubits with amplitude encoding
     '''
     AmplitudeEmbedding(X, wires=range(8), normalize=True)
 
-def accuracy_test(predictions, labels, binary = True):
+def accuracy_test(predictions, labels):
     '''
     This functions calculates the accuracy of the preedicitons
     args: predictions - is the label outputed by neural network (QCNN/CNN)
           labels - Y_test/Y_train datta
-          binary True/Flase (not used)
     '''
     #QE add meaningful varaible names
     acc = 0
-    #for i in len(predictions):       
-    for l,p in zip(labels, predictions):
+    for i in range(len(labels)):
+        predicted_label = np.argmax(predictions[i])
+        
+        if predictions[i][predicted_label] < 0.50:
+            predicted_label = 0
+
+        if predicted_label == labels[i]:
+            acc += 1   
+
+    """for l,p in zip(labels, predictions):
         if np.argmax(p) != l: 
-            P = 0
+            pass
         else:
-            P = 1
-        if P == l:
             acc = acc + 1
+        if P == l:
+            acc = acc + 1"""
     return acc / len(labels)
 
-def Benchmarking(dataset, U, U_params, filename, testName, circuit, steps, snr, binary=True):
+def Benchmarking(dataset, U, U_params, filename, testName, learning_rate, batch_size, circuit, steps, snr):
     """
     This function benchmarks the QCNN
         Parameters
@@ -101,13 +108,13 @@ def Benchmarking(dataset, U, U_params, filename, testName, circuit, steps, snr, 
         path = "C:\\Users\\Fuad K\\Desktop\\Physics\\5th Year\My_QCNN\\Rewritten Code\\QCNN_Results\\QResults" + str(datetime.datetime.now().date())+str(testName)
         os.mkdir(path)
     except:
-        print("File "+path+"already created")
+        print("File "+path+" already created")
     
     start = time.time()
 
     # Initalising QCNN - Opening results file and choosing embedding method
     f = open(path + filename + '.txt', 'a')
-    Emebdding = 'Amplitude'
+    Embedding = 'Amplitude'
 
     X_train, X_val, X_test, Y_train, Y_val, Y_test = data_load_and_process(dataset)
     currentData = (X_train, X_val, X_test, Y_train, Y_val, Y_test)
@@ -127,32 +134,32 @@ def Benchmarking(dataset, U, U_params, filename, testName, circuit, steps, snr, 
     data_length = str(len(dataset[0]))
     print("Loss History for " + circuit + " circuits, " + str(U) + " Amplitude with " +'cross entropy' + ' trained with: ' + data_length + ' with snr: ' +str(snr))
 
-    for i in range(2):
-        loss_history, trained_params = Training.circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testName)
+    for i in range(1):
+        loss_history, trained_params = Training.circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testName, learning_rate, batch_size)
         Valpredictions = [QCNN_circuit.QCNN(x, trained_params, U, U_params) for x in X_val]
         Trainingpredictions = [QCNN_circuit.QCNN(x, trained_params, U, U_params) for x in X_train]
         #calculate accuracy
-        accuracy = accuracy_test(Trainingpredictions, Y_train, binary)
+        #accuracy = accuracy_test(Trainingpredictions, Y_train)
         #for that epoch looks at the accuracy for the model and looks at the current accuracy for both seen (training)
-        print("Training Dataset Accuracy for " + U + " Amplitude :" + str(accuracy))
+        #print("Training Dataset Accuracy for " + U + " Amplitude :" + str(accuracy))
         #and partially seen data (validation)
-        accuracy = accuracy_test(Valpredictions, Y_val, binary)
-        print("Validation Dataset Accuracy for " + U + " Amplitude :" + str(accuracy))
+        #accuracy = accuracy_test(Valpredictions, Y_val)
+        #print("Validation Dataset Accuracy for " + U + " Amplitude :" + str(accuracy))
     
-    print("Trained Paramters: ", trained_params)
+    print("Trained Parameters: ", trained_params)
     # Plots the QCNN Loss Graph
     plt.plot(loss_history, label=U)
     plt.xlabel('Epochs')
     plt.ylabel('Training Loss')
     plt.title('Loss History across '+ str(steps) + 'epochs.')
     plt.savefig(path+'\QCNN_Loss'+str(snr)+'.png')
-    plt.show()
+    #plt.show()
 
     #makes predictions of test set with trained parameters
     #Now training Off Validation data sets 
     testPredictions = [QCNN_circuit.QCNN(x, trained_params, U, U_params) for x in X_test]
-    testAccuracy = accuracy_test(Trainingpredictions, Y_test, binary)
-    print("test Accuracy for " + U + " Amplitude :" + str(accuracy))
+    testAccuracy = accuracy_test(testPredictions, Y_test)
+    print("Test Accuracy for " + U + " Amplitude :" + str(testAccuracy))
 
     #Writes file
     f.write("Loss History for " + circuit + " circuits, " + U + " Amplitude with " +'cross entropy' + ' trained with: ' + data_length + ' with snr: ' +str(snr))
@@ -169,3 +176,5 @@ def Benchmarking(dataset, U, U_params, filename, testName, circuit, steps, snr, 
     f.write("\n")
 
     f.close()
+    
+    return(testAccuracy)
