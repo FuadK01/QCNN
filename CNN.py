@@ -272,15 +272,15 @@ if __name__ == "__main__":
     freq_1=[10,30]
     freq_2=[80,100]
     freq_3=[50,70]
-    frequencies = [freq_1, freq_2, freq_3]
+    frequencies = [[20,21,2,3], [50,51,7,8], [70,71,10,11]]
     filename="C:\\Users\\Fuad K\\Desktop\\Physics\\5th Year\\My_QCNN\\Rewritten Code\\CNN_Results\\CNN_Result"+str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time()).replace(':', '.')
-    dataset=sin_data_generator.multi_plot_gen(p, *frequencies, 10000)
+    dataset=sin_data_generator.multi_sin_gen(p, *frequencies, 10000)
     #for i in range(0,10):
     print('running')
         #dataset = sin_generator.sin_gen3(i,10000)
         #dataset =sin_generator.sin_genn(5,10000)
         
     Benchmarking_CNN(dataset, filename, input_size = 256, optimizer='nesterov', steps=300, batch_size=50)
-    Old_Benchmarking_CNN(dataset, filename, input_size = 256, optimizer='nesterov', steps=300, batch_size=50)
+    #Old_Benchmarking_CNN(dataset, filename, input_size = 256, optimizer='nesterov', steps=300, batch_size=50)
 
 
