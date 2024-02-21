@@ -1,6 +1,7 @@
 import QCNN_circuit
 import pennylane as qml
 from pennylane import numpy as np
+import numpy as np0
 import autograd.numpy as anp
 from pennylane.templates.embeddings import AmplitudeEmbedding
 import pickle
@@ -8,21 +9,7 @@ import datetime
 import os
 from tqdm import tqdm
 import Benchmarking
-"""
-def cross_entropy(labels, predictions):
-    '''
-    Finds cross entropy loss for one example
-    ARGS: labels- Y_train and Y_test datasets
-          predictions- Ouput from QCNN
-    RETURNS: cross entropy loss
-    '''
-    loss = 0
 
-    for l, p in zip(labels, predictions):
-        c_entropy = l * (anp.log(p[l])) + (1 - l) * anp.log(1 - p[1 - l])
-        loss = loss + c_entropy
-    return -1 * loss
-"""
 
 def cross_entropy(labels, predictions):
     '''
@@ -34,14 +21,34 @@ def cross_entropy(labels, predictions):
           cross entropy loss
     '''
     epsilon = 1e-15  # small constant to avoid log(0)
-
     # Clip predictions to avoid log(0) or log(1)
-    predictions = anp.clip(predictions, epsilon, 1 - epsilon)
+    predictions = np0.clip(predictions, epsilon, 1 - epsilon)
+    labels = np0.eye(4)[np0.asarray(labels)]
+    # print("\n LABEL LENGTH:")
+    # print(len(labels))
 
     # Compute cross entropy
-    loss = -anp.sum(labels * np.log(predictions)) / len(labels)
+    loss = np0.sum(labels * np0.log(predictions)) / len(labels)
     
+    return -1 * loss
+
+def least_squares(labels, predictions):
+    '''
+    Finds least squares loss for multiclass classification
+    ARGS:
+          labels: True labels (ground truth)
+          predictions: Model predictions (output from QCNN)
+    RETURNS: 
+          least squares loss
+    '''
+
+    predictions = np.array(predictions)
+    labels = np.eye(4)[anp.asarray(labels)]
+
+    loss = np.sum((predictions - labels)**2) / len(labels)
+
     return loss
+
 
 def cost(params, X, Y, U, U_params):
     '''
@@ -55,12 +62,14 @@ def cost(params, X, Y, U, U_params):
     '''
     #print("params",params)
     predictions = [QCNN_circuit.QCNN(x, params, U, U_params) for x in X]
+
     loss = cross_entropy(Y, predictions)
+
     return loss
 
-def circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testName, learning_rate=0.1, batch_size=5):
+def circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testName, learning_rate, batch_size):
     '''
-    trains qcnn on training data
+    Trains QCNN on training data
     ARGS: X_train- training data
           Y_train- training labels
           U- circuit architecture of qcnn
@@ -71,13 +80,15 @@ def circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testNam
 
     if U == 'U_SU4_no_pooling' or U == 'U_SU4_1D' or U == 'U_9_1D':
         total_params = U_params * 3
+    elif U == 'Large':
+        total_params = U_params
     else:
-        total_params = U_params * 3 + 2 * 3
+        total_params = U_params * 3 + 2 * 3 + 15
     
     params = np.random.randn(total_params, requires_grad=True) # Randomly initialises circuit parameters
 
     # Defining optimizer
-    opt = qml.NesterovMomentumOptimizer(stepsize=learning_rate)
+    opt = qml.AdamOptimizer(stepsize=learning_rate)
     loss_history = []
 
     # Saving model to QCNN_Models folder
@@ -88,8 +99,10 @@ def circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testNam
         print("File "+path+"already created")
     
     pbar = tqdm(total=steps)
-    epoch = len(X_train)/batch_size
+    # epoch = len(X_train)/batch_size
 
+    no_improvement = 1
+    best_params = 0
     # QCNN Training Loop
     for it in range(steps):
         """
@@ -100,18 +113,44 @@ def circuit_training(X_train, X_val, Y_train, Y_val, U, U_params, steps, testNam
         X_batch = [X_train[i] for i in batch_index]
         Y_batch = [Y_train[i] for i in batch_index]
 
+        """if type(best_params) != int:
+            params = best_params"""
+
         # Cost function is called which then calls the quantum cicuit
         params, cost_new = opt.step_and_cost(lambda v: cost(v, X_batch, Y_batch, U, U_params), params)
         loss_history.append(cost_new)
 
-        if it % 20 == 0:
+        if cost_new < smallest:
+            currentfile = path+"\model"+str(testName)+str(it)+"C"+str(cost_new)+".pkl"
+            print(" Saving current parameters:",currentfile)
+            pickle.dump(params, open(currentfile,'wb'))
+            smallest = cost_new
+            no_improvement = 1
+            best_params = params
             print("iteration: ", it, " cost: ", cost_new)
-            if cost_new<smallest:
+        else:
+            #print("No cost improvement")
+            no_improvement += 1    
+
+        """if it % 10 == 0:
+            print("iteration: ", it, " cost: ", cost_new)
+            if cost_new < smallest:
                 currentfile = path+"\model"+str(testName)+str(it)+"C"+str(cost_new)+".pkl"
                 print("Saving current parameters:",currentfile)
                 pickle.dump(params, open(currentfile,'wb'))
                 smallest = cost_new
+                no_improvement = 1
+                #best_params = params
+            else:
+                print("No cost improvement")
+                no_improvement += 1"""
+        
+        if no_improvement % 50 == 0:
+            print(" Decreasing learning rate... \n ")
+            learning_rate /= 10
+            opt = qml.AdamOptimizer(stepsize=learning_rate)
+            no_improvement = 1
         
         pbar.update(1)
     
-    return loss_history, params
+    return loss_history, best_params
