@@ -14,19 +14,19 @@ Note: when using 'mse' as cost_fn binary="True" is recommended, when using 'cros
 """
 
 # Constant declarations
-EPOCHS = 160 # Very large
+EPOCHS = 400
 LEARNING_RATE = 0.01
-BATCH_SIZE = 25
+BATCH_SIZE = 40
 
 if __name__ == "__main__":
     # Choosing Unitary
-    Unitaries='U_9'#, 'U_9', 'U_13', 'U_14', 'U_15', 'U_SO4', 'U_SU4', 'U_SU4_no_pooling', 'U_SU4_1D', 'U_9_1D']
-    U_num_params = 10 #, 10, 2, 6, 6, 4, 6, 15, 15, 15, 2]
+    Unitaries= ['U_6', 'U_5', 'U_9', 'U_13', 'U_14', 'U_15', 'U_SO4', 'U_SU4', 'Large']#, 'U_SU4_no_pooling', 'U_SU4_1D', 'U_9_1D']
+    U_num_params = {'U_6': 10, 'U_5': 10, 'U_9': 2, 'U_13': 6, 'U_14': 6, 'U_15': 4, 'U_SO4': 6, 'U_SU4': 15, 'Large': 146}#, 15, 15, 2]{'U_6': 10, 'U_5': 10, 'U_9': 2, 'U_13': 6, 'U_14': 6, 'U_15': 4, 'U_SO4': 6, 'U_SU4': 15}
     
     # Set filename for saving results of training
     filename = "Result"+str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time()).replace(':', '.')
     #Input name of quantum data file to be trained on
-    Qdata = "Qdata3110111011"
+    Qdata = "Qdata31202150517071"
     fname = r"C:\\Users\\Fuad K\\Desktop\\Physics\\5th Year\\My_QCNN\\Rewritten Code\\Quantum_Data\\"+ Qdata + ".txt"
     testName = "G" + Qdata
     
@@ -78,23 +78,30 @@ if __name__ == "__main__":
             complexData=np.array(complexData,dtype=complex)
             filedata_new.append(complexData)
 
-    print(len(filedata_new))
-    print(type(filedata_new[0]),labels[0])
+    #print(len(filedata_new))
+    #print(type(filedata_new[0]),labels[0])
     print('counter1:',counter1)
     dataset=[filedata_new,labels]
 
     #snr? Frequences
     #was 0.1
-    freqs=[0.8]
-    print('data read')
-    print(freqs)
-    print("test",testName)
-    for p in freqs:
-        #dataset = Quantum_Data.quantum_data(p)
-        #dataset = Quantum_Data.sin_gen(p, 10000)
-        print("HERE")
-        #Step hyper parameters set up here
-        Benchmarking.Benchmarking(dataset, Unitaries, U_num_params, filename,testName ,circuit='QCNN', steps = EPOCHS, snr=p, binary=True)
+    freqs=[1]
+    print('Data reading complete...')
+    #print(freqs)
+    print("test",testName,"\n")
+    #print("Running QCNN...")
 
+    for U in U_num_params:
+        print("\nRunning QCNN with ", U, " and ", str(U_num_params[U]), " params.")
+        accuracy = Benchmarking.Benchmarking(dataset, U, U_num_params[U], filename, testName, LEARNING_RATE, BATCH_SIZE, circuit='QCNN', steps = EPOCHS, snr=1)
+        best_accuracy = 0.001
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            Architecture = U
+    
+    print("Best circuit architecture used the ", Architecture, " ansatz, with a test set accuracy of ", str(best_accuracy * 100), "%")
+    
 
-        #train pnoise network with gnoise
+    #accuracy = Benchmarking.Benchmarking(dataset, 'Large', U_num_params['Large'], filename, testName, LEARNING_RATE, BATCH_SIZE, circuit='QCNN', steps = EPOCHS, snr=1)
+
+    #train pnoise network with gnoise
